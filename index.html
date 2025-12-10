@@ -160,9 +160,14 @@
                 <i data-lucide="lock" class="w-5 h-5 text-gold"></i>
             </div>
             <h2 class="text-xl font-medium text-white mb-2">Acceso Requerido</h2>
-            <p class="text-white/40 mb-8 text-sm font-light">Introduce tu llave Gemini para continuar.</p>
-            <input type="password" id="api-key-input" placeholder="API Key"
-                class="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white placeholder-white/20 mb-4 focus:border-gold/50 focus:ring-0 outline-none transition-all text-center">
+            <p class="text-white/40 mb-8 text-sm font-light">Configura tu entorno de trabajo.</p>
+
+            <div class="mb-6 text-left">
+                <label class="text-xs text-gold/80 uppercase tracking-widest font-bold ml-1 mb-2 block">Llave Gemini
+                    (API Key)</label>
+                <input type="password" id="api-key-input" placeholder="Pegar API Key aquí..."
+                    class="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white placeholder-white/20 focus:border-gold/50 focus:ring-0 outline-none transition-all">
+            </div>
             <button id="save-key-btn" class="w-full btn-primary py-4 rounded-xl text-sm tracking-wide uppercase">
                 Acceder
             </button>
@@ -260,10 +265,10 @@
             el.innerText = `System: ${msg}`;
         };
 
-        // Constants & Config
+        // Config & State
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
         let apiKey = localStorage.getItem('gemini_api_key') || "";
-        const GEMINI_MODEL = 'gemini-3.0-pro-preview';
+        const GEMINI_MODEL = 'gemini-2.0-flash'; // Using Flash for speed/efficiency on analysis
 
         // DOM Elements
         const els = {
@@ -288,15 +293,23 @@
             clearBtn: document.getElementById('clear-btn')
         };
 
-        // Auth Logic
+        // Auth & Config Logic
         const checkAuth = () => {
             if (!apiKey) els.modal.classList.remove('hidden');
             else els.modal.classList.add('hidden');
         };
+
         els.saveBtn.onclick = () => {
             const val = els.keyInput.value.trim();
-            if (val) { apiKey = val; localStorage.setItem('gemini_api_key', val); checkAuth(); }
+
+            if (val) {
+                apiKey = val;
+                localStorage.setItem('gemini_api_key', val);
+            }
+
+            if (apiKey) checkAuth();
         };
+
         els.settingsBtn.onclick = () => {
             els.keyInput.value = apiKey;
             els.modal.classList.remove('hidden');
@@ -381,29 +394,53 @@
                 rawResult = verified;
                 render(verified);
 
-                setStatus('Calculando Plazos...', 90);
+                setStatus('Analizando Jurisdicción y Plazos...', 90);
                 const deadlines = await checkDeadlines(extractedText);
-                if (deadlines.deadlineFound) {
-                    const expiry = parseDate(deadlines.expirationDate);
-                    const days = expiry ? Math.ceil((expiry - new Date()) / (1000 * 3600 * 24)) : 0;
-                    const colorClass = days < 0 ? 'text-red-400' : (days == 0 ? 'text-gold' : 'text-emerald-400');
 
-                    deadlineResult = `\n\n[PLAZO DETECTADO]: ${deadlines.termDescription} (Vence: ${deadlines.expirationDate})`;
+                if (deadlines.deadlineFound) {
+                    const expiry = deadlines.expirationDate ? parseDate(deadlines.expirationDate) : null;
+                    const days = expiry ? Math.ceil((expiry - new Date()) / (1000 * 3600 * 24)) : 0;
+
+                    let colorClass = 'text-gold';
+                    let daysDisplay = 'N/A';
+
+                    if (expiry) {
+                        colorClass = days < 0 ? 'text-red-400' : (days == 0 ? 'text-gold' : 'text-emerald-400');
+                        daysDisplay = `${days} Días`;
+                    }
+
+                    deadlineResult = `\n\n[PLAZO DETECTADO]: ${deadlines.termDescription} (${deadlines.expirationDate || 'Fecha pendiente'}) - Jur: ${deadlines.detectedJurisdiction || 'Indefinida'}`;
+
                     els.resultText.innerHTML += `
-                        <div class="mt-8 pt-4 border-t border-white/10">
-                            <div class="flex items-center gap-3">
-                                <div class="bg-white/5 p-2 rounded-lg"><i data-lucide="alarm-clock" class="text-gold w-5 h-5"></i></div>
-                                <div>
-                                    <p class="text-xs text-white/50 uppercase">Término Procesal</p>
-                                    <p class="text-sm text-white">${deadlines.termDescription}</p>
+                        <div class="mt-8 pt-4 border-t border-white/10 animate-fade">
+                            <div class="flex items-center gap-3 bg-white/5 p-4 rounded-2xl border border-gold/20">
+                                <div class="bg-gold/10 p-3 rounded-xl"><i data-lucide="alarm-clock" class="text-gold w-6 h-6"></i></div>
+                                <div class="flex-1">
+                                    <p class="text-xs text-gold/80 uppercase tracking-wider font-bold mb-1">Término Procesal (${deadlines.detectedJurisdiction || 'General'})</p>
+                                    <p class="text-sm text-white font-medium mb-1">${deadlines.termDescription}</p>
+                                    <p class="text-xs text-white/40 italic">${deadlines.legalBasis || 'Fundamento no especificado'}</p>
+                                    <p class="text-xs text-white/30 mt-2">${deadlines.reasoning || ''}</p>
                                 </div>
-                                <div class="ml-auto text-right">
-                                    <p class="text-lg font-bold ${colorClass}">${days} Días</p>
-                                    <p class="text-xs text-white/30">Restantes (Est)</p>
+                                <div class="text-right pl-4 border-l border-white/10">
+                                    <p class="text-xl font-bold ${colorClass}">${daysDisplay}</p>
+                                    <p class="text-xs text-white/30">Restantes</p>
                                 </div>
                             </div>
                         </div>`;
-                } else deadlineResult = "";
+                } else {
+                    // Muestra explícita de "Sin Plazo"
+                    deadlineResult = "";
+                    els.resultText.innerHTML += `
+                        <div class="mt-8 pt-4 border-t border-white/10 opacity-70">
+                            <div class="flex items-center gap-3 p-3 rounded-xl border border-transparent">
+                                <div class="bg-white/5 p-2 rounded-lg"><i data-lucide="check-circle" class="text-emerald-500/50 w-5 h-5"></i></div>
+                                <div>
+                                    <p class="text-xs text-emerald-500/50 uppercase tracking-wider font-bold">Sin Término Fatal (${deadlines.detectedJurisdiction || 'Detectado'})</p>
+                                    <p class="text-xs text-white/30">${deadlines.reasoning || 'Auto de trámite o informativo.'}</p>
+                                </div>
+                            </div>
+                        </div>`;
+                }
 
                 setStatus('Listo', 100);
                 els.resultBox.classList.remove('hidden');
@@ -463,7 +500,8 @@
         }
 
         async function geminiCall(sys, user) {
-            const models = [GEMINI_MODEL, 'gemini-2.0-flash', 'gemini-1.5-pro'];
+            // Using updated model list including Pro and Flash
+            const models = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'];
             for (let m of models) {
                 try {
                     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
@@ -478,11 +516,45 @@
         }
 
         async function checkDeadlines(txt) {
-            const res = await geminiCall("Hoy: " + new Date().toLocaleDateString() + ". Busca plazos (Vista=3d). JSON: {deadlineFound:bool, termDescription:str, expirationDate:'YYYY-MM-DD'}", txt);
-            try { return JSON.parse(res.match(/\{.*\}/s)[0]); } catch { return { deadlineFound: false }; }
+            const today = new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+            const prompt = `
+            Eres un Abogado Procesalista Experto en Derecho Mexicano.
+            Fecha Actual: ${today}
+
+            Analiza el texto del documento adjunto (Notificación, Auto, Sentencia o Promoción) para detectar TÉRMINOS O PLAZOS PROCESALES y la JURISDICCIÓN aplicable automáticamnte.
+
+            TAREA PRINCIPAL:
+            1.  **Detectar Jurisdicción/Entidad Federativa**: Analiza encabezados, sellos, nombres de juzgados (ej. "Juzgado Civil de Torreón, Coahuila", "Poder Judicial de la Federación") para determinar qué código o ley procesal aplica.
+            2.  **Identificar Materia y Vía**: (Civil, Mercantil, Amparo, Familiar, etc.).
+            3.  **Cómputo de Plazos**: Considera si los días son hábiles o naturales según la materia y jurisdicción detectada.
+            4.  **Detección de "Sin Término"**: Si el auto solo dice "agréguese", "téngase por recibido", "se reserva", o es meramente informativo, marca "deadlineFound": false.
+
+            DOCUMENTO A ANALIZAR:
+            ${txt.substring(0, 8000)}
+
+            RESPONDE ÚNICAMENTE CON ESTE JSON:
+            {
+                "detectedJurisdiction": "string", // Ej: "Federal", "Ciudad de México", "Jalisco", "Desconocida"
+                "deadlineFound": boolean, // true solo si hay un plazo fatal corriendo
+                "termDescription": "string", // Acción requerida
+                "legalBasis": "string", // Fundamento legal (ej. "Art. 135 CPCDF")
+                "expirationDate": "YYYY-MM-DD", // Fecha estimada de vencimiento. null si no aplica.
+                "reasoning": "string" // Explicación breve
+            }`;
+
+            try {
+                const res = await geminiCall(prompt, "Analiza el documento y extrae el JSON de plazos y jurisdicción.");
+                // Clean markdown code blocks if present
+                const cleanJson = res.replace(/```json/g, '').replace(/```/g, '').trim();
+                return JSON.parse(cleanJson);
+            } catch (e) {
+                console.error(e);
+                return { deadlineFound: false, reasoning: "Error al analizar plazos.", detectedJurisdiction: "Error" };
+            }
         }
 
-        function parseDate(str) { return new Date(str); }
+        function parseDate(str) { return new Date(str + 'T00:00:00'); } // Force local time handling
 
         function render(txt) {
             // Minimal styling for markdown
