@@ -392,19 +392,25 @@
                     summary = await geminiCall(
                         `Genera un REPORTE EJECUTIVO PARA WHATSAPP/TELEGRAM basado en el documento.
                         
-                        FORMATO ESTRICTO (Usa Emojis):
-                        📄 *[TIPO DE DOCUMENTO]* (Ej. Auto, Notificación, Sentencia)
-                        🏛️ *Expediente/Autoridad:* [Número] - [Juzgado]
+                        🚨 INSTRUCCIÓN CRÍTICA: DETECTA SI EL ARCHIVO CONTIENE MÚLTIPLES DOCUMENTOS (Varios Autos, Promociones, o mezcla de ambos).
+                        SI HAY MÁS DE UNO: Genera una ficha separada por una línea divisoria (---) para CADA UNO.
+
+                        FORMATO ESTRICTO POR DOCUMENTO DETECTADO (Usa Emojis):
                         
-                        📌 *SÍNTESIS:* [Resumen de 1-2 líneas máximo, directo al grano]
+                        📄 *[TIPO DE DOCUMENTO]* (Ej. Auto de Radicación, Promoción Actor, Sentencia Int.)
+                        🏛️ *Expediente:* [Número] - [Juzgado]
                         
-                        ⚠️ *ESTADO:* [¿Qué pasó? ¿Se admitió? ¿Se desechó? ¿Hay requerimiento?]
+                        📌 *SÍNTESIS:* [Resumen de 1-2 líneas máximo]
+                        
+                        ⚠️ *ESTADO:* [¿Admitido? ¿Desechado? ¿Requerimiento?]
                         
                         🔍 *CLAVES:*
-                        • [Punto 1 con emoji relevante]
-                        • [Punto 2 con emoji relevante]
+                        • [Punto clave 1]
+                        • [Punto clave 2]
                         
-                        🚀 *ACCIÓN:* [¿Qué procede hacer hoy?]`,
+                        🚀 *ACCIÓN:* [Acción sugerida]
+                        
+                        (Si hay otro documento, inserta "---" y repite estructura)`,
                         extractedText
                     );
 
@@ -414,31 +420,34 @@
                     // MODO DETALLADO: Prompt profundo y CON verificación de auditor.
                     const detailedPrompt = `Genera un INFORME JURÍDICO DETALLADO Y EXHAUSTIVO basado en el documento.
                     
-                    FORMATO MARKDOWN:
+                    🚨 INSTRUCCIÓN CRÍTICA: SI EL TEXTO CONTIENE MÚLTIPLES DOCUMENTOS (Ej. Un Auto seguido de una Promoción, o varios Autos), ANALIZA CADA UNO POR SEPARADO.
+                    Usa un encabezado principal para cada documento detectado (Ej. "DOCUMENTO 1: AUTO...").
+
+                    FORMATO MARKDOWN (Repetir para cada documento):
                     # [TIPO DE DOCUMENTO]
                     
                     ## 1. Ficha Técnica
                     - **Expediente:** [Número]
                     - **Autoridad:** [Juzgado/Tribunal]
-                    - **Fecha del Auto:** [Fecha]
+                    - **Fecha:** [Fecha del documento]
                     
                     ## 2. Resumen de Hechos
-                    Narrativa cronológica, clara y detallada de lo acordado o solicitado en el documento.
+                    Narrativa cronológica, clara y detallada de lo acordado o solicitado.
                     
                     ## 3. Análisis de Fondo
-                    - **Motivación:** ¿Qué resolvió el juez y cuál fue su razonamiento principal?
-                    - **Fundamentación:** Análisis de los artículos citados y su pertinencia al caso.
-                    - **Jurisprudencia:** Si se citan criterios, explícalos brevemente.
+                    - **Motivación/Petición:** Razonamiento del juez o solicitud de las partes.
+                    - **Fundamentación:** Análisis de artículos citados pertinencia.
+                    - **Jurisprudencia:** Explicación de criterios citados.
                     
                     ## 4. Estrategia y Acción
-                    - **Recomendación:** Pasos tácticos específicos sugeridos para el litigante.
-                    - **Riesgos:** Posibles escenarios adversos si no se atiende.`;
+                    - **Recomendación:** Pasos tácticos específicos.
+                    - **Riesgos:** Escenarios adversos.`;
 
                     summary = await geminiCall(detailedPrompt, extractedText);
 
                     setStatus('Verificando (Modo Profundo)...', 80);
                     // Verificación solo para reporte formal
-                    summary = await geminiCall("Eres auditor jurídico. Corrige imprecisiones y mejora la claridad del INFORME basado en el ORIGINAL. Mantén el formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
+                    summary = await geminiCall("Eres auditor jurídico. Corrige imprecisiones y asegura que si hay múltiples documentos se distingan claramente. Mantén el formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
                 }
 
                 rawResult = summary;
