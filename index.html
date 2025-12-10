@@ -500,19 +500,59 @@
         }
 
         async function geminiCall(sys, user) {
-            // Using updated model list including Pro and Flash
-            const models = ['gemini-2.0-flash-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+            // Updated model list
+            const models = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+
+            // Try models in order
             for (let m of models) {
                 try {
-                    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: user }] }], systemInstruction: { parts: [{ text: sys }] } })
-                    });
-                    if (!r.ok) throw new Error(r.status);
-                    return (await r.json()).candidates[0].content.parts[0].text;
-                } catch (e) { console.warn(m, e); continue; }
+                    let response;
+
+                    if (apiKey) {
+                        // Direct Client-Side Call (Dev/Manual Mode)
+                        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: user }] }],
+                                systemInstruction: { parts: [{ text: sys }] }
+                            })
+                        });
+                    } else {
+                        // Serverless Proxy Call (Secure production Mode)
+                        // Note: Only works if hosted on Netlify or similar with /netlify/functions/gemini
+                        response = await fetch(`/.netlify/functions/gemini`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                model: m,
+                                contents: [{ parts: [{ text: user }] }],
+                                systemInstruction: { parts: [{ text: sys }] }
+                            })
+                        });
+                    }
+
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        console.warn(`Model ${m} failed:`, response.status, errText);
+                        throw new Error(`API Error ${response.status}: ${errText}`);
+                    }
+
+                    const data = await response.json();
+
+                    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                        throw new Error("Invalid structure from API");
+                    }
+
+                    return data.candidates[0].content.parts[0].text;
+
+                } catch (e) {
+                    console.warn(m, "attempt failed:", e);
+                    if (m === models[models.length - 1]) throw e; // Rethrow if last model fails
+                    continue;
+                }
             }
-            throw new Error("Servicio IA no disponible");
+            throw new Error("Servicio IA no disponible en ningún modelo");
         }
 
         async function checkDeadlines(txt) {
