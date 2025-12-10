@@ -385,7 +385,22 @@
 
                 setStatus('Analizando con Gemini Pro...', 50);
                 const summary = await geminiCall(mode == 'quick' ?
-                    "Resumen WhatsApp Ejecutivo: 1. Qué es, 2. Estado, 3. Clave." :
+                    `Genera un REPORTE EJECUTIVO PARA WHATSAPP/TELEGRAM basado en el documento.
+                    
+                    FORMATO ESTRICTO (Usa Emojis):
+                    📄 *[TIPO DE DOCUMENTO]* (Ej. Auto, Notificación, Sentencia)
+                    🏛️ *Expediente/Autoridad:* [Número] - [Juzgado]
+                    
+                    📌 *SÍNTESIS:* [Resumen de 1-2 líneas máximo, directo al grano]
+                    
+                    ⚠️ *ESTADO:* [¿Qué pasó? ¿Se admitió? ¿Se desechó? ¿Hay requerimiento?]
+                    
+                    🔍 *CLAVES:*
+                    • [Punto 1 con emoji relevante]
+                    • [Punto 2 con emoji relevante]
+                    
+                    🚀 *ACCIÓN:* [¿Qué procede hacer hoy?]
+                    ` :
                     "Informe Legal Markdown: 1. Ficha, 2. Historia, 3. Análisis Fondo, 4. Acción.", extractedText);
 
                 setStatus('Verificando...', 80);
