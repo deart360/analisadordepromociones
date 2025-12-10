@@ -424,7 +424,8 @@
                         daysDisplay = `${days} Días`;
                     }
 
-                    deadlineResult = `\n\n[PLAZO DETECTADO]: ${deadlines.termDescription} (${deadlines.expirationDate || 'Fecha pendiente'}) - Jur: ${deadlines.detectedJurisdiction || 'Indefinida'}`;
+                    // Formatted for WhatsApp/Copy
+                    deadlineResult = `\n\n⏰ *TÉRMINO PROCESAL (${deadlines.detectedJurisdiction || 'N/A'})*\n⚠️ *Plazo:* ${deadlines.termDescription}\n📅 *Vencimiento:* ${deadlines.expirationDate || 'Por calcular'}\n⚖️ *Fundamento:* ${deadlines.legalBasis || 'N/A'}`;
 
                     els.resultText.innerHTML += `
                         <div class="mt-8 pt-4 border-t border-white/10 animate-fade">
@@ -443,8 +444,9 @@
                             </div>
                         </div>`;
                 } else {
-                    // Muestra explícita de "Sin Plazo"
-                    deadlineResult = "";
+                    // Formatted for WhatsApp/Copy even when negative
+                    deadlineResult = `\n\n✅ *TÉRMINO:* No se detectan plazos fatales (${deadlines.detectedJurisdiction || 'General'}).\n📝 *Nota:* ${deadlines.reasoning || 'Auto de trámite.'}`;
+
                     els.resultText.innerHTML += `
                         <div class="mt-8 pt-4 border-t border-white/10 opacity-70">
                             <div class="flex items-center gap-3 p-3 rounded-xl border border-transparent">
