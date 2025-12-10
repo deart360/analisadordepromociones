@@ -384,30 +384,65 @@
                 if (!extractedText.trim()) throw new Error("Documento sin texto legible");
 
                 setStatus('Analizando con Gemini Pro...', 50);
-                const summary = await geminiCall(mode == 'quick' ?
-                    `Genera un REPORTE EJECUTIVO PARA WHATSAPP/TELEGRAM basado en el documento.
-                    
-                    FORMATO ESTRICTO (Usa Emojis):
-                    📄 *[TIPO DE DOCUMENTO]* (Ej. Auto, Notificación, Sentencia)
-                    🏛️ *Expediente/Autoridad:* [Número] - [Juzgado]
-                    
-                    📌 *SÍNTESIS:* [Resumen de 1-2 líneas máximo, directo al grano]
-                    
-                    ⚠️ *ESTADO:* [¿Qué pasó? ¿Se admitió? ¿Se desechó? ¿Hay requerimiento?]
-                    
-                    🔍 *CLAVES:*
-                    • [Punto 1 con emoji relevante]
-                    • [Punto 2 con emoji relevante]
-                    
-                    🚀 *ACCIÓN:* [¿Qué procede hacer hoy?]
-                    ` :
-                    "Informe Legal Markdown: 1. Ficha, 2. Historia, 3. Análisis Fondo, 4. Acción.", extractedText);
 
-                setStatus('Verificando...', 80);
-                const verified = await geminiCall("Eres auditor. Corrige imprecisiones en el INFORME basado en el ORIGINAL. Solo devuelve el informe.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
+                let summary = "";
 
-                rawResult = verified;
-                render(verified);
+                if (mode == 'quick') {
+                    // MODO RÁPIDO: Prompt estricto de WhatsApp y SIN verificación posterior para no romper el formato.
+                    summary = await geminiCall(
+                        `Genera un REPORTE EJECUTIVO PARA WHATSAPP/TELEGRAM basado en el documento.
+                        
+                        FORMATO ESTRICTO (Usa Emojis):
+                        📄 *[TIPO DE DOCUMENTO]* (Ej. Auto, Notificación, Sentencia)
+                        🏛️ *Expediente/Autoridad:* [Número] - [Juzgado]
+                        
+                        📌 *SÍNTESIS:* [Resumen de 1-2 líneas máximo, directo al grano]
+                        
+                        ⚠️ *ESTADO:* [¿Qué pasó? ¿Se admitió? ¿Se desechó? ¿Hay requerimiento?]
+                        
+                        🔍 *CLAVES:*
+                        • [Punto 1 con emoji relevante]
+                        • [Punto 2 con emoji relevante]
+                        
+                        🚀 *ACCIÓN:* [¿Qué procede hacer hoy?]`,
+                        extractedText
+                    );
+
+                    // No verificamos en modo rápido/whatsapp para preservar los emojis y estructura exacta.
+
+                } else {
+                    // MODO DETALLADO: Prompt profundo y CON verificación de auditor.
+                    const detailedPrompt = `Genera un INFORME JURÍDICO DETALLADO Y EXHAUSTIVO basado en el documento.
+                    
+                    FORMATO MARKDOWN:
+                    # [TIPO DE DOCUMENTO]
+                    
+                    ## 1. Ficha Técnica
+                    - **Expediente:** [Número]
+                    - **Autoridad:** [Juzgado/Tribunal]
+                    - **Fecha del Auto:** [Fecha]
+                    
+                    ## 2. Resumen de Hechos
+                    Narrativa cronológica, clara y detallada de lo acordado o solicitado en el documento.
+                    
+                    ## 3. Análisis de Fondo
+                    - **Motivación:** ¿Qué resolvió el juez y cuál fue su razonamiento principal?
+                    - **Fundamentación:** Análisis de los artículos citados y su pertinencia al caso.
+                    - **Jurisprudencia:** Si se citan criterios, explícalos brevemente.
+                    
+                    ## 4. Estrategia y Acción
+                    - **Recomendación:** Pasos tácticos específicos sugeridos para el litigante.
+                    - **Riesgos:** Posibles escenarios adversos si no se atiende.`;
+
+                    summary = await geminiCall(detailedPrompt, extractedText);
+
+                    setStatus('Verificando (Modo Profundo)...', 80);
+                    // Verificación solo para reporte formal
+                    summary = await geminiCall("Eres auditor jurídico. Corrige imprecisiones y mejora la claridad del INFORME basado en el ORIGINAL. Mantén el formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
+                }
+
+                rawResult = summary;
+                render(summary);
 
                 setStatus('Analizando Jurisdicción y Plazos...', 90);
                 const deadlines = await checkDeadlines(extractedText);
