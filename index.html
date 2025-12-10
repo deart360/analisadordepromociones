@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asistente Decrevi Pro</title>
+
+    <!-- PWA & Mobile Configuration -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js'></script>
+
+    <style>
+        /* Apple-style typography: Clean Inter/System */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+        :root {
+            --ios-gold: #D4AF37;
+            /* Champagne Gold */
+            --ios-glass: rgba(28, 28, 30, 0.65);
+            --ios-text: #F5F5F7;
+        }
+
+        html,
+        body {
+            background-color: #000000;
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            /* Apple System Font Stack */
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            color: var(--ios-text);
+        }
+
+        /* Minimalist Background: Pure Black with very subtle warm ambient light */
+        #ambient-glow {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120vw;
+            height: 120vh;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.08) 0%, rgba(0, 0, 0, 0) 60%);
+            z-index: -10;
+            pointer-events: none;
+        }
+
+        /* Apple-style "Materials" */
+        .glass-panel {
+            background: rgba(30, 30, 30, 0.4);
+            /* Dark translucent material */
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .glass-panel-heavy {
+            background: rgba(20, 20, 20, 0.8);
+            -webkit-backdrop-filter: blur(50px);
+            backdrop-filter: blur(50px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* Minimalist Inputs */
+        .drop-zone {
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--ios-gold);
+            background: rgba(212, 175, 55, 0.05);
+            /* Gold tint */
+        }
+
+        /* Buttons: Refined, Pill-shaped, Minimal */
+        .btn-action {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: white;
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        .btn-action:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            transform: scale(1.02);
+        }
+
+        .btn-action:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .btn-primary {
+            background: var(--ios-gold);
+            color: black;
+            font-weight: 500;
+            border: none;
+            box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: #E5C35D;
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.3);
+        }
+
+        /* Typography improvements */
+        .text-gold {
+            color: var(--ios-gold);
+        }
+
+        .font-sf {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Smooth Fade In */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade {
+            animation: fadeIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+    </style>
+</head>
+
+<body class="flex flex-col items-center justify-center min-h-screen p-6 selection:bg-amber-500/30">
+
+    <div id="ambient-glow"></div>
+    <div id="global-error-msg"
+        class="hidden fixed top-0 left-0 w-full bg-red-900/90 text-white p-4 z-[999] text-xs font-mono"></div>
+
+    <!-- API KEY MODAL (Minimalist) -->
+    <div id="api-key-modal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl hidden transition-all duration-500">
+        <div class="glass-panel-heavy p-8 rounded-3xl w-full max-w-sm mx-6 text-center shadow-2xl animate-fade">
+            <div class="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="lock" class="w-5 h-5 text-gold"></i>
+            </div>
+            <h2 class="text-xl font-medium text-white mb-2">Acceso Requerido</h2>
+            <p class="text-white/40 mb-8 text-sm font-light">Introduce tu llave Gemini para continuar.</p>
+            <input type="password" id="api-key-input" placeholder="API Key"
+                class="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white placeholder-white/20 mb-4 focus:border-gold/50 focus:ring-0 outline-none transition-all text-center">
+            <button id="save-key-btn" class="w-full btn-primary py-4 rounded-xl text-sm tracking-wide uppercase">
+                Acceder
+            </button>
+        </div>
+    </div>
+
+    <!-- CONFIG FAB -->
+    <button id="settings-btn"
+        class="fixed top-6 right-6 z-40 p-3 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white transition-all backdrop-blur-md">
+        <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+    </button>
+
+    <!-- CONTENT -->
+    <div class="w-full max-w-3xl glass-panel rounded-[2rem] p-8 md:p-12 relative z-10 animate-fade">
+
+        <!-- Header Minimalista -->
+        <div class="text-center mb-12">
+            <h1 class="text-3xl md:text-4xl font-semibold tracking-tight text-white mb-2">Decrevi AI <span
+                    class="text-gold font-light">Pro</span></h1>
+            <p class="text-white/30 text-xs uppercase tracking-[0.2em]">Asistente Jurídico Inteligente</p>
+        </div>
+
+        <!-- Drop Zone -->
+        <div id="drop-zone"
+            class="drop-zone w-full p-12 text-center rounded-2xl cursor-pointer group relative overflow-hidden mb-8">
+            <input type="file" id="file-input" class="hidden" accept=".pdf,image/*">
+            <div class="relative z-10 transition-transform duration-500 group-hover:scale-105">
+                <i data-lucide="file-text"
+                    class="w-10 h-10 text-white/20 group-hover:text-gold transition-colors mx-auto mb-6"></i>
+                <p class="text-white/80 text-lg font-light">Arrastra tu expediente</p>
+                <p id="file-name" class="text-gold mt-4 font-medium text-sm hidden"></p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button id="quick-summary-btn"
+                class="btn-action py-5 rounded-xl flex flex-col items-center justify-center gap-2" disabled>
+                <i data-lucide="zap" class="w-5 h-5 text-white/70"></i>
+                <span class="text-sm font-medium tracking-wide opacity-80">Análisis Rápido</span>
+            </button>
+            <button id="detailed-analysis-btn"
+                class="btn-action py-5 rounded-xl flex flex-col items-center justify-center gap-2" disabled>
+                <i data-lucide="align-left" class="w-5 h-5 text-white/70"></i>
+                <span class="text-sm font-medium tracking-wide opacity-80">Informe Detallado</span>
+            </button>
+        </div>
+
+        <!-- Progress -->
+        <div id="status-container" class="mt-8 text-center hidden">
+            <p id="status-text" class="text-gold/80 text-xs font-medium uppercase tracking-widest mb-3 animate-pulse">
+                Procesando</p>
+            <div class="w-32 mx-auto h-[2px] bg-white/10 rounded-full overflow-hidden">
+                <div id="progress-bar"
+                    class="h-full bg-gold w-0 transition-all duration-500 shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
+            </div>
+        </div>
+
+        <!-- Results: Clean Reader View -->
+        <div id="result-container" class="mt-12 pt-8 border-t border-white/5 hidden animate-fade">
+            <div class="flex justify-between items-center mb-6">
+                <span class="text-xs font-semibold text-white/40 uppercase tracking-wider">Resultado</span>
+                <div class="flex gap-4">
+                    <button id="arguments-btn"
+                        class="text-white/40 hover:text-gold text-xs transition-colors hidden font-medium">VER
+                        ESTRATEGIA</button>
+                    <button id="copy-btn"
+                        class="text-white/40 hover:text-white text-xs transition-colors font-medium">COPIAR</button>
+                    <button id="clear-btn"
+                        class="text-red-400/60 hover:text-red-400 text-xs transition-colors font-medium">LIMPIAR</button>
+                </div>
+            </div>
+
+            <div class="prose prose-invert prose-sm max-w-none">
+                <div id="result-text" class="text-gray-300 font-light leading-relaxed whitespace-pre-wrap"></div>
+            </div>
+        </div>
+
+        <div id="arguments-result-container" class="mt-8 pt-8 border-t border-white/5 hidden animate-fade">
+            <div class="prose prose-invert prose-sm max-w-none">
+                <h3 class="text-gold font-normal mb-4">Análisis Estratégico</h3>
+                <div id="arguments-text"
+                    class="text-gray-300 font-light leading-relaxed whitespace-pre-wrap bg-white/5 p-6 rounded-xl border border-white/5">
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // System Error Handler
+        window.onerror = (msg, url, line, col, error) => {
+            const el = document.getElementById('global-error-msg');
+            el.classList.remove('hidden');
+            el.innerText = `System: ${msg}`;
+        };
+
+        // Constants & Config
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+        let apiKey = localStorage.getItem('gemini_api_key') || "";
+        const GEMINI_MODEL = 'gemini-3.0-pro-preview';
+
+        // DOM Elements
+        const els = {
+            modal: document.getElementById('api-key-modal'),
+            keyInput: document.getElementById('api-key-input'),
+            saveBtn: document.getElementById('save-key-btn'),
+            settingsBtn: document.getElementById('settings-btn'),
+            dropZone: document.getElementById('drop-zone'),
+            fileInput: document.getElementById('file-input'),
+            fileName: document.getElementById('file-name'),
+            quickBtn: document.getElementById('quick-summary-btn'),
+            detailedBtn: document.getElementById('detailed-analysis-btn'),
+            statusBox: document.getElementById('status-container'),
+            statusText: document.getElementById('status-text'),
+            progress: document.getElementById('progress-bar'),
+            resultBox: document.getElementById('result-container'),
+            resultText: document.getElementById('result-text'),
+            argBox: document.getElementById('arguments-result-container'),
+            argText: document.getElementById('arguments-text'),
+            argBtn: document.getElementById('arguments-btn'),
+            copyBtn: document.getElementById('copy-btn'),
+            clearBtn: document.getElementById('clear-btn')
+        };
+
+        // Auth Logic
+        const checkAuth = () => {
+            if (!apiKey) els.modal.classList.remove('hidden');
+            else els.modal.classList.add('hidden');
+        };
+        els.saveBtn.onclick = () => {
+            const val = els.keyInput.value.trim();
+            if (val) { apiKey = val; localStorage.setItem('gemini_api_key', val); checkAuth(); }
+        };
+        els.settingsBtn.onclick = () => {
+            els.keyInput.value = apiKey;
+            els.modal.classList.remove('hidden');
+        };
+        checkAuth();
+
+        // State
+        let selectedFile = null;
+        let extractedText = '';
+        let rawResult = '';
+        let deadlineResult = '';
+
+        // Handlers
+        els.dropZone.onclick = () => els.fileInput.click();
+        els.dropZone.ondragover = (e) => { e.preventDefault(); els.dropZone.classList.add('dragover'); };
+        els.dropZone.ondragleave = () => els.dropZone.classList.remove('dragover');
+        els.dropZone.ondrop = (e) => {
+            e.preventDefault();
+            els.dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+        };
+        els.fileInput.onchange = (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); };
+
+        els.quickBtn.onclick = () => process('quick');
+        els.detailedBtn.onclick = () => process('detailed');
+        els.clearBtn.onclick = resetUI;
+        els.copyBtn.onclick = copyToClip;
+        els.argBtn.onclick = loadArguments;
+
+        function handleFile(file) {
+            if (file.size > 20 * 1024 * 1024) return alert("Archivo > 20MB");
+            selectedFile = file;
+            els.fileName.innerText = file.name;
+            els.fileName.classList.remove('hidden');
+            els.quickBtn.disabled = false;
+            els.detailedBtn.disabled = false;
+            els.resultBox.classList.add('hidden');
+        }
+
+        function resetUI() {
+            selectedFile = null; extractedText = '';
+            els.fileInput.value = '';
+            els.fileName.innerText = '';
+            els.fileName.classList.add('hidden');
+            els.resultBox.classList.add('hidden');
+            els.argBox.classList.add('hidden');
+            els.quickBtn.disabled = true;
+            els.detailedBtn.disabled = true;
+        }
+
+        function setStatus(msg, pct) {
+            els.statusBox.classList.remove('hidden');
+            els.statusText.innerText = msg;
+            if (pct !== undefined) els.progress.style.width = pct + '%';
+        }
+        function hideStatus() {
+            els.statusBox.classList.add('hidden');
+            els.progress.style.width = '0%';
+        }
+
+        // Logic
+        async function process(mode) {
+            if (!selectedFile) return;
+            els.quickBtn.disabled = true; els.detailedBtn.disabled = true;
+            els.resultBox.classList.add('hidden');
+
+            try {
+                setStatus('Leyendo Documento...', 10);
+                if (selectedFile.type == 'application/pdf') extractedText = await pdfText(selectedFile);
+                else extractedText = await imgText(selectedFile);
+
+                if (!extractedText.trim()) throw new Error("Documento sin texto legible");
+
+                setStatus('Analizando con Gemini Pro...', 50);
+                const summary = await geminiCall(mode == 'quick' ?
+                    "Resumen WhatsApp Ejecutivo: 1. Qué es, 2. Estado, 3. Clave." :
+                    "Informe Legal Markdown: 1. Ficha, 2. Historia, 3. Análisis Fondo, 4. Acción.", extractedText);
+
+                setStatus('Verificando...', 80);
+                const verified = await geminiCall("Eres auditor. Corrige imprecisiones en el INFORME basado en el ORIGINAL. Solo devuelve el informe.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
+
+                rawResult = verified;
+                render(verified);
+
+                setStatus('Calculando Plazos...', 90);
+                const deadlines = await checkDeadlines(extractedText);
+                if (deadlines.deadlineFound) {
+                    const expiry = parseDate(deadlines.expirationDate);
+                    const days = expiry ? Math.ceil((expiry - new Date()) / (1000 * 3600 * 24)) : 0;
+                    const colorClass = days < 0 ? 'text-red-400' : (days == 0 ? 'text-gold' : 'text-emerald-400');
+
+                    deadlineResult = `\n\n[PLAZO DETECTADO]: ${deadlines.termDescription} (Vence: ${deadlines.expirationDate})`;
+                    els.resultText.innerHTML += `
+                        <div class="mt-8 pt-4 border-t border-white/10">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-white/5 p-2 rounded-lg"><i data-lucide="alarm-clock" class="text-gold w-5 h-5"></i></div>
+                                <div>
+                                    <p class="text-xs text-white/50 uppercase">Término Procesal</p>
+                                    <p class="text-sm text-white">${deadlines.termDescription}</p>
+                                </div>
+                                <div class="ml-auto text-right">
+                                    <p class="text-lg font-bold ${colorClass}">${days} Días</p>
+                                    <p class="text-xs text-white/30">Restantes (Est)</p>
+                                </div>
+                            </div>
+                        </div>`;
+                } else deadlineResult = "";
+
+                setStatus('Listo', 100);
+                els.resultBox.classList.remove('hidden');
+                els.argBtn.classList.remove('hidden');
+
+            } catch (e) {
+                alert(e.message);
+            } finally {
+                hideStatus();
+                if (selectedFile) { els.quickBtn.disabled = false; els.detailedBtn.disabled = false; }
+                lucide.createIcons();
+            }
+        }
+
+        async function loadArguments() {
+            setStatus('Analizando Estrategia...', 40);
+            try {
+                const args = await geminiCall("Lista argumentos A FAVOR y EN CONTRA (Actores vs Demandados).", extractedText);
+                els.argText.innerText = args;
+                els.argBox.classList.remove('hidden');
+                els.argBox.scrollIntoView({ behavior: 'smooth' });
+            } catch (e) { alert(e.message); }
+            hideStatus();
+        }
+
+        // Helpers
+        async function pdfText(file) {
+            try {
+                const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
+                let txt = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    txt += (await page.getTextContent()).items.map(s => s.str).join(' ');
+                }
+                return txt || await ocrPdf(file); // Fallback to OCR if empty
+            } catch { return await ocrPdf(file); }
+        }
+
+        async function ocrPdf(file) {
+            const w = await Tesseract.createWorker('spa');
+            const pdf = await pdfjsLib.getDocument(await file.arrayBuffer()).promise;
+            let txt = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const v = page.getViewport({ scale: 2 });
+                const c = document.createElement('canvas'); c.width = v.width; c.height = v.height;
+                await page.render({ canvasContext: c.getContext('2d'), viewport: v }).promise;
+                txt += (await w.recognize(c)).data.text;
+            }
+            await w.terminate(); return txt;
+        }
+
+        async function imgText(file) {
+            const w = await Tesseract.createWorker('spa');
+            const ret = (await w.recognize(file)).data.text;
+            await w.terminate(); return ret;
+        }
+
+        async function geminiCall(sys, user) {
+            const models = [GEMINI_MODEL, 'gemini-2.0-flash', 'gemini-1.5-pro'];
+            for (let m of models) {
+                try {
+                    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: user }] }], systemInstruction: { parts: [{ text: sys }] } })
+                    });
+                    if (!r.ok) throw new Error(r.status);
+                    return (await r.json()).candidates[0].content.parts[0].text;
+                } catch (e) { console.warn(m, e); continue; }
+            }
+            throw new Error("Servicio IA no disponible");
+        }
+
+        async function checkDeadlines(txt) {
+            const res = await geminiCall("Hoy: " + new Date().toLocaleDateString() + ". Busca plazos (Vista=3d). JSON: {deadlineFound:bool, termDescription:str, expirationDate:'YYYY-MM-DD'}", txt);
+            try { return JSON.parse(res.match(/\{.*\}/s)[0]); } catch { return { deadlineFound: false }; }
+        }
+
+        function parseDate(str) { return new Date(str); }
+
+        function render(txt) {
+            // Minimal styling for markdown
+            let h = txt.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<span class="text-white font-semibold">$1</span>');
+            els.resultText.innerHTML = h;
+        }
+
+        function copyToClip() {
+            navigator.clipboard.writeText(rawResult + deadlineResult);
+            els.copyBtn.innerText = "COPIADO";
+            setTimeout(() => els.copyBtn.innerText = "COPIAR", 2000);
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

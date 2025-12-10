@@ -1,0 +1,47 @@
+:root {
+    /* Color Palette - Premium Dark/Glass */
+    --bg-app: #0f172a; /* Slate 900 */
+    --bg-sidebar: rgba(15, 23, 42, 0.6);
+    --bg-card: rgba(30, 41, 59, 0.7); /* Slate 800 + Opacity */
+    --bg-glass: rgba(255, 255, 255, 0.05);
+    
+    --accent-primary: #3b82f6; /* Blue 500 */
+    --accent-glow: rgba(59, 130, 246, 0.5);
+    --accent-secondary: #8b5cf6; /* Violet 500 */
+    
+    --text-main: #f8fafc; /* Slate 50 */
+    --text-muted: #94a3b8; /* Slate 400 */
+    
+    --border-subtle: rgba(255, 255, 255, 0.1);
+    
+    /* Typography */
+    --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    
+    /* Spacing & Radius */
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --header-height: 70px;
+}
+
+/* Glassmorphism Classes */
+.glass {
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+}
+
+.glass-heavy {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-subtle);
+}
+
+/* Foldable Support */
+@media (horizontal-viewport-segments: 2) {
+    :root {
+        --layout-gap: 24px;
+    }
+}
