@@ -388,66 +388,73 @@
                 let summary = "";
 
                 if (mode == 'quick') {
-                    // MODO RÁPIDO: Prompt estricto de WhatsApp y SIN verificación posterior para no romper el formato.
+                    // MODO RÁPIDO: Estructura jerárquica para WhatsApp
                     summary = await geminiCall(
-                        `Genera un REPORTE EJECUTIVO PARA WHATSAPP/TELEGRAM basado en el documento.
-                        
-                        🚨 INSTRUCCIÓN CRÍTICA: DETECTA SI EL ARCHIVO CONTIENE MÚLTIPLES DOCUMENTOS (Varios Autos, Promociones, o mezcla de ambos).
-                        SI HAY MÁS DE UNO: Genera una ficha separada por una línea divisoria (---) para CADA UNO.
+                        `Genera un REPORTE EJECUTIVO PARA WHATSAPP/TELEGRAM.
 
-                        FORMATO ESTRICTO POR DOCUMENTO DETECTADO (Usa Emojis):
+                        🚨 MATRIZ DE ANÁLISIS MULTI-DOCUMENTO:
+                        1. Identifica TODOS los documentos distintos en el archivo (Auto 1, Promoción 1, Auto 2, etc.).
+                        2. Si hay varios, AGRÚPALOS en un solo mensaje bajo un encabezado general.
+                        3. Cada documento debe ser un SUB-APARTADO claro.
+
+                        FORMATO DE SALIDA (Usa Emojis):
                         
-                        📄 *[TIPO DE DOCUMENTO]* (Ej. Auto de Radicación, Promoción Actor, Sentencia Int.)
-                        🏛️ *Expediente:* [Número] - [Juzgado]
+                        🗳️ *REPORTE DE EXPEDIENTE* (General)
+
+                        ---
+                        🔷 *SUB-APARTADO 1: [TIPO, ej. Auto de Radicación]*
+                        🏛️ *Autoridad:* [Juzgado]
+                        📌 *Síntesis:* [Resumen conciso]
+                        ⚠️ *Estado:* [Admitido/Desechado]
+                        🔍 *Claves:*
+                        • [Punto 1]
+                        🚀 *Acción:* [Acción específica]
+
+                        ---
+                        🔷 *SUB-APARTADO 2: [TIPO, ej. Promoción Contestación]*
+                        📌 *Síntesis:* [Resumen conciso]
+                        ⚠️ *Estado:* [Recibido/Acordado]
+                        🚀 *Acción:* [Acción específica]
+                        ---
                         
-                        📌 *SÍNTESIS:* [Resumen de 1-2 líneas máximo]
-                        
-                        ⚠️ *ESTADO:* [¿Admitido? ¿Desechado? ¿Requerimiento?]
-                        
-                        🔍 *CLAVES:*
-                        • [Punto clave 1]
-                        • [Punto clave 2]
-                        
-                        🚀 *ACCIÓN:* [Acción sugerida]
-                        
-                        (Si hay otro documento, inserta "---" y repite estructura)`,
+                        (Repetir bloques "🔷 SUB-APARTADO" según sea necesario. Si solo hay uno, solo pon ese).`,
                         extractedText
                     );
 
-                    // No verificamos en modo rápido/whatsapp para preservar los emojis y estructura exacta.
-
                 } else {
-                    // MODO DETALLADO: Prompt profundo y CON verificación de auditor.
-                    const detailedPrompt = `Genera un INFORME JURÍDICO DETALLADO Y EXHAUSTIVO basado en el documento.
+                    // MODO DETALLADO: Estructura Markdown Jerárquica
+                    const detailedPrompt = `Genera un INFORME JURÍDICO DETALLADO Y EXHAUSTIVO.
                     
-                    🚨 INSTRUCCIÓN CRÍTICA: SI EL TEXTO CONTIENE MÚLTIPLES DOCUMENTOS (Ej. Un Auto seguido de una Promoción, o varios Autos), ANALIZA CADA UNO POR SEPARADO.
-                    Usa un encabezado principal para cada documento detectado (Ej. "DOCUMENTO 1: AUTO...").
+                    🚨 ESTRUCTURA MULTI-DOCUMENTO:
+                    El archivo puede contener varios actos procesales (ej. un Auto y una Promoción).
+                    Analízalos TODOS dentro de este mismo reporte como SECCIONES INDEPENDIENTES pero integradas.
 
-                    FORMATO MARKDOWN (Repetir para cada documento):
-                    # [TIPO DE DOCUMENTO]
+                    FORMATO MARKDOWN:
                     
-                    ## 1. Ficha Técnica
-                    - **Expediente:** [Número]
-                    - **Autoridad:** [Juzgado/Tribunal]
-                    - **Fecha:** [Fecha del documento]
+                    # 📁 ANÁLISIS DE EXPEDIENTE INTEGRAL
                     
-                    ## 2. Resumen de Hechos
-                    Narrativa cronológica, clara y detallada de lo acordado o solicitado.
+                    ## 📄 DOCUMENTO 1: [NOMBRE, Ej. AUTO DE INICIO]
+                    ### 1. Ficha Técnica
+                    - **Fecha:** [Fecha]
+                    - **Autoridad:** [Juzgado]
+                    ### 2. Hechos y Motivación
+                    [Narrativa detallada]
+                    ### 3. Análisis Legal
+                    [Fundamentación y razonamiento]
+                    ### 4. Estrategia
+                    [Recomendaciones]
+
+                    ***
+
+                    ## 📄 DOCUMENTO 2: [NOMBRE, Ej. PROMOCIÓN DE PRUEBAS]
+                    (Repetir estructura de análisis: Ficha, Contenido, Análisis, Estrategia)
                     
-                    ## 3. Análisis de Fondo
-                    - **Motivación/Petición:** Razonamiento del juez o solicitud de las partes.
-                    - **Fundamentación:** Análisis de artículos citados pertinencia.
-                    - **Jurisprudencia:** Explicación de criterios citados.
-                    
-                    ## 4. Estrategia y Acción
-                    - **Recomendación:** Pasos tácticos específicos.
-                    - **Riesgos:** Escenarios adversos.`;
+                    (Agregar más secciones si detectas más documentos. Si solo es uno, omite la sección "DOCUMENTO 2")`;
 
                     summary = await geminiCall(detailedPrompt, extractedText);
 
                     setStatus('Verificando (Modo Profundo)...', 80);
-                    // Verificación solo para reporte formal
-                    summary = await geminiCall("Eres auditor jurídico. Corrige imprecisiones y asegura que si hay múltiples documentos se distingan claramente. Mantén el formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
+                    summary = await geminiCall("Eres auditor jurídico. Asegura que el informe distinga claramente cada documento detectado como sub-secciones del reporte general. Mantén formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
                 }
 
                 rawResult = summary;
