@@ -203,7 +203,7 @@
         </div>
 
         <!-- Actions -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <button id="quick-summary-btn"
                 class="btn-action py-5 rounded-xl flex flex-col items-center justify-center gap-2" disabled>
                 <i data-lucide="zap" class="w-5 h-5 text-white/70"></i>
@@ -214,6 +214,22 @@
                 <i data-lucide="align-left" class="w-5 h-5 text-white/70"></i>
                 <span class="text-sm font-medium tracking-wide opacity-80">Informe Detallado</span>
             </button>
+        </div>
+
+        <!-- Custom Prompt Input -->
+        <div id="custom-prompt-container" class="hidden animate-fade mb-4">
+            <div class="flex gap-2">
+                <input type="text" id="custom-instruction-input"
+                    placeholder="Instrucción específica (Ej. Extrae solo las fechas clave...)"
+                    class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/30 focus:border-gold/50 focus:bg-white/10 focus:ring-0 outline-none transition-all">
+                <button id="custom-analysis-btn"
+                    class="btn-action px-6 rounded-xl flex items-center justify-center gap-2 bg-white/10" disabled>
+                    <i data-lucide="bot" class="w-4 h-4 text-gold"></i>
+                    <span class="text-sm font-medium tracking-wide text-white">A Medida</span>
+                </button>
+            </div>
+            <p class="text-xs text-white/30 mt-2 ml-1 font-light">Agrega una instrucción para pedirle a la IA que
+                analice algo en específico del documento.</p>
         </div>
 
         <!-- Progress -->
@@ -294,7 +310,10 @@
             argText: document.getElementById('arguments-text'),
             argBtn: document.getElementById('arguments-btn'),
             copyBtn: document.getElementById('copy-btn'),
-            clearBtn: document.getElementById('clear-btn')
+            clearBtn: document.getElementById('clear-btn'),
+            customContainer: document.getElementById('custom-prompt-container'),
+            customInput: document.getElementById('custom-instruction-input'),
+            customBtn: document.getElementById('custom-analysis-btn')
         };
 
         // Auth & Config Logic
@@ -339,6 +358,22 @@
 
         els.quickBtn.onclick = () => process('quick');
         els.detailedBtn.onclick = () => process('detailed');
+        els.customBtn.onclick = () => process('custom');
+        els.customInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !els.customBtn.disabled && els.customInput.value.trim() !== '') {
+                process('custom');
+            }
+        });
+
+        // Listen to input changes to enable/disable custom button
+        els.customInput.addEventListener('input', () => {
+            if (selectedFile && els.customInput.value.trim() !== '') {
+                els.customBtn.disabled = false;
+            } else {
+                els.customBtn.disabled = true;
+            }
+        });
+
         els.clearBtn.onclick = resetUI;
         els.copyBtn.onclick = copyToClip;
         els.argBtn.onclick = loadArguments;
@@ -350,6 +385,9 @@
             els.fileName.classList.remove('hidden');
             els.quickBtn.disabled = false;
             els.detailedBtn.disabled = false;
+            els.customContainer.classList.remove('hidden');
+            // Sólo habilitar botón a medida si hay texto
+            els.customBtn.disabled = (els.customInput.value.trim() === '');
             els.resultBox.classList.add('hidden');
         }
 
@@ -360,8 +398,11 @@
             els.fileName.classList.add('hidden');
             els.resultBox.classList.add('hidden');
             els.argBox.classList.add('hidden');
+            els.customContainer.classList.add('hidden');
+            els.customInput.value = '';
             els.quickBtn.disabled = true;
             els.detailedBtn.disabled = true;
+            els.customBtn.disabled = true;
         }
 
         let currentProgress = 0;
@@ -410,7 +451,15 @@
         // Logic
         async function process(mode) {
             if (!selectedFile) return;
-            els.quickBtn.disabled = true; els.detailedBtn.disabled = true;
+
+            if (mode === 'custom' && els.customInput.value.trim() === '') {
+                alert("Por favor, ingresa una instrucción personalizada.");
+                els.customInput.focus();
+                return;
+            }
+
+            els.quickBtn.disabled = true; els.detailedBtn.disabled = true; els.customBtn.disabled = true;
+            els.customInput.disabled = true;
             els.resultBox.classList.add('hidden');
 
             try {
@@ -495,6 +544,18 @@
 
                     setStatus('Verificando (Modo Profundo)...', 88, 1500);
                     summary = await geminiCall("Eres auditor jurídico. Asegura que el informe distinga claramente cada documento detectado como sub-secciones del reporte general. Mantén formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
+                } else if (mode == 'custom') {
+                    // MODO A MEDIDA: Toma la instrucción del usuario
+                    const customInstruction = els.customInput.value.trim();
+                    const customPrompt = `
+                    El usuario ha solicitado el siguiente análisis específico sobre el documento adjunto:
+                    "${customInstruction}"
+
+                    Responde DIRECTAMENTE a lo solicitado por el usuario de forma clara, profesional y estructurada. Puedes usar formato Markdown para resaltar partes importantes.
+                    No agregues introducciones largas, ve directo al punto solicitado.
+                    `;
+
+                    summary = await geminiCall(customPrompt, extractedText);
                 }
 
                 rawResult = summary;
@@ -558,7 +619,12 @@
                 alert(e.message);
             } finally {
                 hideStatus();
-                if (selectedFile) { els.quickBtn.disabled = false; els.detailedBtn.disabled = false; }
+                if (selectedFile) {
+                    els.quickBtn.disabled = false;
+                    els.detailedBtn.disabled = false;
+                    els.customInput.disabled = false;
+                    els.customBtn.disabled = (els.customInput.value.trim() === '');
+                }
                 lucide.createIcons();
             }
         }
