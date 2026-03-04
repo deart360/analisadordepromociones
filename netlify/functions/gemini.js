@@ -1,4 +1,4 @@
-exports.handler = async function(event, context) {
+exports.handler = async function (event, context) {
   // Only allow POST
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
@@ -16,7 +16,7 @@ exports.handler = async function(event, context) {
   try {
     const body = JSON.parse(event.body);
     const { contents, systemInstruction, model } = body;
-    const targetModel = model || 'gemini-2.0-flash';
+    const targetModel = model || 'gemini-3.5-pro';
 
     // Call Google AI API using native fetch (Node 18+)
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${GEMINI_API_KEY}`, {

@@ -1,5 +1,6 @@
 // Models: Prioritizing Next-Gen models found in user account
 const MODELS = [
+    "gemini-3.5-pro",
     "gemini-3-pro-preview",       // User requested this specifically!
     "gemini-2.0-flash",           // Very fast & stable
     "gemini-2.5-pro",
