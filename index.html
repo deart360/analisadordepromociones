@@ -218,11 +218,14 @@
 
         <!-- Progress -->
         <div id="status-container" class="mt-8 text-center hidden">
-            <p id="status-text" class="text-gold/80 text-xs font-medium uppercase tracking-widest mb-3 animate-pulse">
-                Procesando</p>
-            <div class="w-32 mx-auto h-[2px] bg-white/10 rounded-full overflow-hidden">
+            <div class="flex justify-between items-end mb-2 px-1 max-w-[12rem] mx-auto">
+                <p id="status-text"
+                    class="text-gold/80 text-xs font-medium uppercase tracking-widest animate-pulse m-0">Procesando</p>
+                <span id="progress-percentage" class="text-white/80 text-xs font-bold font-mono">0%</span>
+            </div>
+            <div class="w-48 mx-auto h-[3px] bg-white/10 rounded-full overflow-hidden">
                 <div id="progress-bar"
-                    class="h-full bg-gold w-0 transition-all duration-500 shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
+                    class="h-full bg-gold w-0 transition-all duration-300 shadow-[0_0_10px_rgba(212,175,55,0.5)]"></div>
             </div>
         </div>
 
@@ -283,6 +286,7 @@
             detailedBtn: document.getElementById('detailed-analysis-btn'),
             statusBox: document.getElementById('status-container'),
             statusText: document.getElementById('status-text'),
+            progressText: document.getElementById('progress-percentage'),
             progress: document.getElementById('progress-bar'),
             resultBox: document.getElementById('result-container'),
             resultText: document.getElementById('result-text'),
@@ -360,14 +364,47 @@
             els.detailedBtn.disabled = true;
         }
 
-        function setStatus(msg, pct) {
+        let currentProgress = 0;
+        let progressInterval = null;
+
+        function setStatus(msg, targetPct, durationMs = 0) {
             els.statusBox.classList.remove('hidden');
             els.statusText.innerText = msg;
-            if (pct !== undefined) els.progress.style.width = pct + '%';
+
+            clearInterval(progressInterval);
+
+            if (targetPct !== undefined) {
+                if (durationMs > 0) {
+                    const steps = Math.max(10, durationMs / 50);
+                    const stepAmount = (targetPct - currentProgress) / steps;
+
+                    progressInterval = setInterval(() => {
+                        currentProgress += stepAmount;
+                        if (currentProgress >= targetPct) {
+                            currentProgress = targetPct;
+                            clearInterval(progressInterval);
+                        }
+                        updateProgressUI(currentProgress);
+                    }, 50);
+                } else {
+                    currentProgress = targetPct;
+                    updateProgressUI(currentProgress);
+                }
+            }
         }
+
+        function updateProgressUI(pct) {
+            const intPct = Math.min(100, Math.round(pct));
+            els.progress.style.width = intPct + '%';
+            if (els.progressText) els.progressText.innerText = intPct + '%';
+        }
+
         function hideStatus() {
+            clearInterval(progressInterval);
             els.statusBox.classList.add('hidden');
             els.progress.style.width = '0%';
+            if (els.progressText) els.progressText.innerText = '0%';
+            currentProgress = 0;
         }
 
         // Logic
@@ -377,13 +414,16 @@
             els.resultBox.classList.add('hidden');
 
             try {
-                setStatus('Leyendo Documento...', 10);
+                currentProgress = 0;
+                // Simular progreso rápido hasta 30% (Lectura)
+                setStatus('Leyendo Documento...', 30, 2000);
                 if (selectedFile.type == 'application/pdf') extractedText = await pdfText(selectedFile);
                 else extractedText = await imgText(selectedFile);
 
                 if (!extractedText.trim()) throw new Error("Documento sin texto legible");
 
-                setStatus('Analizando con Gemini Pro...', 50);
+                // Simular progreso gradual hasta 80% (Análisis) mientras esperamos
+                setStatus('Analizando con Gemini Pro...', 80, 8000);
 
                 let summary = "";
 
@@ -453,14 +493,14 @@
 
                     summary = await geminiCall(detailedPrompt, extractedText);
 
-                    setStatus('Verificando (Modo Profundo)...', 80);
+                    setStatus('Verificando (Modo Profundo)...', 88, 1500);
                     summary = await geminiCall("Eres auditor jurídico. Asegura que el informe distinga claramente cada documento detectado como sub-secciones del reporte general. Mantén formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
                 }
 
                 rawResult = summary;
                 render(summary);
 
-                setStatus('Analizando Jurisdicción y Plazos...', 90);
+                setStatus('Analizando Jurisdicción y Plazos...', 95, 2000);
                 const deadlines = await checkDeadlines(extractedText);
 
                 if (deadlines.deadlineFound) {
@@ -524,7 +564,7 @@
         }
 
         async function loadArguments() {
-            setStatus('Analizando Estrategia...', 40);
+            setStatus('Analizando Estrategia...', 40, 3000);
             try {
                 const args = await geminiCall("Lista argumentos A FAVOR y EN CONTRA (Actores vs Demandados).", extractedText);
                 els.argText.innerText = args;
