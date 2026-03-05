@@ -192,12 +192,14 @@
 
         <!-- Drop Zone -->
         <div id="drop-zone"
-            class="drop-zone w-full p-12 text-center rounded-2xl cursor-pointer group relative overflow-hidden mb-8">
-            <input type="file" id="file-input" class="hidden" accept=".pdf,image/*">
-            <div class="relative z-10 transition-transform duration-500 group-hover:scale-105">
+            class="drop-zone w-full p-12 text-center rounded-2xl cursor-pointer group relative overflow-hidden mb-8 hover:bg-white/5 transition-colors">
+            <!-- Full-cover invisible input is universally supported and safe from security blocks -->
+            <input type="file" id="file-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                accept=".pdf,image/*">
+            <div class="transition-transform duration-500 group-hover:scale-105 pointer-events-none relative z-10">
                 <i data-lucide="file-text"
                     class="w-10 h-10 text-white/20 group-hover:text-gold transition-colors mx-auto mb-6"></i>
-                <p class="text-white/80 text-lg font-light">Arrastra tu expediente</p>
+                <p class="text-white/80 text-lg font-light">Toca o arrastra tu expediente aquí</p>
                 <p id="file-name" class="text-gold mt-4 font-medium text-sm hidden"></p>
             </div>
         </div>
@@ -346,7 +348,6 @@
         let deadlineResult = '';
 
         // Handlers
-        els.dropZone.onclick = () => els.fileInput.click();
         els.dropZone.ondragover = (e) => { e.preventDefault(); els.dropZone.classList.add('dragover'); };
         els.dropZone.ondragleave = () => els.dropZone.classList.remove('dragover');
         els.dropZone.ondrop = (e) => {
@@ -544,7 +545,7 @@
 
                     setStatus('Verificando (Modo Profundo)...', 88, 1500);
                     summary = await geminiCall("Eres auditor jurídico. Asegura que el informe distinga claramente cada documento detectado como sub-secciones del reporte general. Mantén formato Markdown.", `ORIGINAL:\n${extractedText}\nINFORME:\n${summary}`);
-                } else if (mode == 'custom') {
+                } else if (mode === 'custom') {
                     // MODO A MEDIDA: Toma la instrucción del usuario
                     const customInstruction = els.customInput.value.trim();
                     const customPrompt = `
