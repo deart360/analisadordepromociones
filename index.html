@@ -193,8 +193,9 @@
         <!-- Drop Zone -->
         <label id="drop-zone"
             class="drop-zone w-full p-12 text-center rounded-2xl cursor-pointer group relative overflow-hidden mb-8 block hover:bg-white/5 transition-colors">
-            <!-- Usando label, cualquier clic dentro activa este input nativamente en todos los navegadores -->
-            <input type="file" id="file-input" class="hidden" accept=".pdf,image/*">
+            <!-- Input invisible sobre toda el área para forzar el evento nativo en celulares -->
+            <input type="file" id="file-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
+                accept=".pdf,image/*">
             <div class="transition-transform duration-500 group-hover:scale-105 pointer-events-none relative z-10">
                 <i data-lucide="file-text"
                     class="w-10 h-10 text-white/20 group-hover:text-gold transition-colors mx-auto mb-6"></i>
