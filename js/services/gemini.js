@@ -1,6 +1,6 @@
 // Models: Strictly use the best model available for legal information
 const MODELS = [
-    "gemini-3.1-pro"
+    "gemini-2.0-flash"
 ];
 
 window.GeminiService = class GeminiService {
