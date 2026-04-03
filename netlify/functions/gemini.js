@@ -16,7 +16,7 @@ exports.handler = async function (event, context) {
   try {
     const body = JSON.parse(event.body);
     const { contents, systemInstruction, model } = body;
-    const targetModel = model || 'gemini-2.0-flash';
+    const targetModel = model || 'gemini-3.1-pro-preview';
 
     // Call Google AI API using native fetch (Node 18+)
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${GEMINI_API_KEY}`, {
