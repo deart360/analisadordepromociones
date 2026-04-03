@@ -1,13 +1,6 @@
-// Models: Prioritizing Next-Gen models found in user account
+// Models: Strictly use the best model available for legal information
 const MODELS = [
-    "gemini-3.5-pro",
-    "gemini-3-pro-preview",       // User requested this specifically!
-    "gemini-2.0-flash",           // Very fast & stable
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash-001",
-    "gemini-1.5-pro",             // Legacy fallback
-    "gemini-1.5-flash"
+    "gemini-3.1-pro"
 ];
 
 window.GeminiService = class GeminiService {
