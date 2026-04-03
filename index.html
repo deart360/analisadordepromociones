@@ -486,6 +486,7 @@
                         1. Identifica TODOS los documentos distintos en el archivo.
                         2. AGRÚPALOS en un solo mensaje bajo un encabezado general.
                         3. NO uses la palabra "SUB-APARTADO". Usa solo el emoji y el nombre del acto.
+                        4. PROHIBIDO USAR CUALQUIER INTRODUCCIÓN O DESPEDIDA COMO "Aquí tienes", "Este es el reporte", etc. COMIENZA DIRECTAMENTE CON "🗳️ *REPORTE DE EXPEDIENTE*".
 
                         FORMATO DE SALIDA (Usa Emojis):
                         
@@ -518,6 +519,9 @@
                     🚨 ESTRUCTURA MULTI-DOCUMENTO:
                     El archivo puede contener varios actos procesales (ej. un Auto y una Promoción).
                     Analízalos TODOS dentro de este mismo reporte como SECCIONES INDEPENDIENTES pero integradas.
+                    
+                    🚨 PROHIBIDO USAR CUALQUIER INTRODUCCIÓN O DESPEDIDA (como "A continuación presento...", "Aquí tienes el informe").
+                    COMIENZA DIRECTAMENTE CON EL TÍTULO "# 📁 ANÁLISIS DE EXPEDIENTE INTEGRAL".
 
                     FORMATO MARKDOWN:
                     
@@ -675,8 +679,21 @@
         }
 
         async function geminiCall(sys, user) {
-            // Updated model list
-            const models = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+            // Updated model list to include preview and latest models as fallbacks
+            const models = [
+                'gemini-3.5-pro',
+                'gemini-3-pro-preview',
+                'gemini-2.5-pro',
+                'gemini-2.5-flash',
+                'gemini-2.0-flash',
+                'gemini-1.5-pro-latest',
+                'gemini-1.5-flash-latest',
+                'gemini-1.5-pro',
+                'gemini-1.5-flash',
+                'gemini-pro'
+            ];
+
+            let errors = [];
 
             // Try models in order
             for (let m of models) {
@@ -695,7 +712,6 @@
                         });
                     } else {
                         // Serverless Proxy Call (Secure production Mode)
-                        // Note: Only works if hosted on Netlify or similar with /netlify/functions/gemini
                         response = await fetch(`/.netlify/functions/gemini`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -723,11 +739,13 @@
 
                 } catch (e) {
                     console.warn(m, "attempt failed:", e);
-                    if (m === models[models.length - 1]) throw e; // Rethrow if last model fails
+                    errors.push(`${m}: ${e.message}`);
                     continue;
                 }
             }
-            throw new Error("Servicio IA no disponible en ningún modelo");
+            // If all models failed, throw the detailed error of the FIRST model tried
+            console.error("All models failed", errors);
+            throw new Error(`Ningún modelo funcionó.\nError del primer modelo (${models[0]}):\n${errors[0]}`);
         }
 
         async function checkDeadlines(txt) {
